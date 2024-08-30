@@ -1,32 +1,52 @@
 pipeline {
     agent any
+	environment {
+        // define an image tag name
+        def img = ("${env.JOB_NAME}:${env.BUILD_ID}").toLowerCase()
+    }	
+
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-				echo "Checkout"
-				//git branch: 'main', url: 'https://github.com/kss7/SmartFlaskAPP.git'
-				sh 'ls -l'
+                git branch: 'main', url: 'https://github.com/jehadkalifah/SmartFlaskAPP.git'
+                sh 'ls -la'
             }
         }
-     stage('Unit Tests') {
-           steps {
-				echo "Unit Tests"
-				//sh(returnStatus: true, script: '. ~/.bashrc \n pyenv version')
-				//sh('chmod +x ./jenkinsscript.sh')
-				sh('bash ./jenkinsscript.sh')
-          }
-        }
-	stage("Publish Junit report") {
-            steps{
-				echo "Publish Junit"
-				junit skipMarkingBuildUnstable: true, testResults: 'xmlReport/output.xml'
+        stage('Build') {
+            steps {
+				echo "Building our image"
+				script {
+                    // the whole command to build the image
+					dockerImg = docker.build("${img}")
+                }
             }
         }
-	stage ("Publish Code Coverage") {
-            steps{
-				echo "Publish code coverage"
-				cobertura coberturaReportFile: 'coverage.xml'
+        stage('Deploy Run') {
+            steps {
+				echo "Deploy and Run"
+				script {
+                    // run the docker image and add the container id in count variable
+					cont = docker.image("${img}").run('--rm -d -p 5000:5000')
+					sleep(5)
+                }
+            }
+        }
+        stage('Do Some Tests') {
+            steps {
+				echo "Do Some tests"
             }
         }
     }
+   post {
+		 always  {
+            echo "In POST stage - Stop Docker image"
+            script {
+                if (cont) {
+                    echo "In Post - inside if condt"
+                    // stop the container
+                    cont.stop()
+                }
+            }
+        }
+	}
 }
