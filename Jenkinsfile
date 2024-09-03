@@ -1,8 +1,9 @@
 pipeline {
     agent any
 	environment {
-        // define an image tag name
-        def img = ("${env.JOB_NAME}:${env.BUILD_ID}").toLowerCase()
+        registry = "jehaddocker82/my-smart-app"
+        img = "$registry"+":${env.BUILD_ID}"
+        registryCredential = "dockerhub-login"
     }	
 
     stages {
@@ -21,32 +22,19 @@ pipeline {
                 }
             }
         }
-        stage('Deploy Run') {
+        stage('Push') {
             steps {
-				echo "Deploy and Run"
+				echo "Pushing our image"
 				script {
-                    // run the docker image and add the container id in count variable
-					cont = docker.image("${img}").run('--rm -d -p 5000:5000')
-					sleep(5)
+                    // docker.withRegistry('https://registry.hub.docker.com', registryCredential)
+                    withDockerRegistry(credentialsId: 'dockerhub-login') {
+                        dockerImg.push()
+                        // then the second one, it will be tagged as the latest
+                        // so it will update the latest with the last image is pushed
+                        dockerImg.push('latest')
+                    }
                 }
             }
-        }
-        stage('Do Some Tests') {
-            steps {
-				echo "Do Some tests"
-            }
-        }
+        }        
     }
-   post {
-		 always  {
-            echo "In POST stage - Stop Docker image"
-            script {
-                if (cont) {
-                    echo "In Post - inside if condt"
-                    // stop the container
-                    cont.stop()
-                }
-            }
-        }
-	}
 }
