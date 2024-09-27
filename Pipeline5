@@ -1,31 +1,38 @@
 pipeline {
   agent {
-    label 'built-in'
+    // all these stages, excluding stages have agent, is going to run on this agent label
+    label 'dockeragent'
   }
   environment {
-    registry = "kss7/my-smart-app"
+    registry = "jehaddocker82/my-smart-app"
     img = "$registry" + ":${env.BUILD_ID}"
-    registryCredential = 'docker-hub-login' //withRegistry needs just credentialsId so give like this
-    mailRecipients = "abcd@myyahoo.com, kss0101@mymail.com"
+    registryCredential = 'dockerhub-login' //withRegistry needs just credentialsId so give like this
+    mailRecipients = "abujoj.2018@gmail.com, abujoj.2018@gmail.com"
     jobName = "${currentBuild.fullDisplayName}"
   }
   // options {
-  //skipDefaultCheckout() //this option will Skip checking out code by default in all agents
+    // this option will Skip checking out code by default in all agents
+    // all these agents are not going to get the code and it's not going to work
+    //skipDefaultCheckout() 
   //}
   stages {
     stage('Checkout') {
       steps {
         echo "Check code is downloaded"
-        //git branch: 'main', url: 'https://github.com/kss7/CopyDelete1.git'
+        //git branch: 'main', url: 'https://github.com/jehadkalifah/SmartFlaskAPP.git'
         sh 'ls -la'
       }
     }
     stage('Test, Coverage, Static Analysis, Report') {
       parallel {
         stage('Test & Coverage') {
+          // Docker containers are run on the default Docker host
+					// which set on Manage Jenkins - System - Declarative Pipeline (Docker) - Docker Label
           agent {
             docker {
               image 'python:3.10-slim-buster'
+              // which user is going to run "root"
+							// args '--user 0:0'
             }
           }
           steps {
@@ -39,7 +46,6 @@ pipeline {
               echo "PostStage: Publish Test Report"
               junit skipMarkingBuildUnstable: true, testResults: 'xmlReport/output.xml'
               cleanWs()
-
             }
           }
         }
@@ -59,7 +65,10 @@ pipeline {
           post {
             always {
               echo "PostStage: Publish Static Analysis"
+              // enable the records even for the failed builds and used tool is flake8
               recordIssues enabledForFailure: true, tool: flake8(pattern: '*.text')
+              // workspace clean up
+              // it set here because parallel stages are running on different agents
               cleanWs()
             }
           }
@@ -97,9 +106,9 @@ pipeline {
         from: "Jenkins",
         replyTo: "${mailRecipients}",
         attachLog: true
-
     }
     cleanup {
+      // workspace clean up
       cleanWs()
     }
   }
